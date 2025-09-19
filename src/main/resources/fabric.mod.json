@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "stacknator",
+  "version": "${version}",
+  "name": "Stacknator",
+  "description": "TODO",
+  "authors": [],
+  "contact": {
+    "homepage": "https://modrinth.com/user/Riser876",
+    "sources": "https://github.com/GMalvestiti/Stacknator",
+    "issues": "https://github.com/GMalvestiti/Stacknator/issues"
+  },
+  "license": "Apache-2.0",
+  "icon": "assets/stacknator/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "net.riser876.stacknator.Stacknator"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*"
+  }
+}
