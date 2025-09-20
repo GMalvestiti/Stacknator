@@ -8,7 +8,6 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.riser876.stacknator.Stacknator;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import static net.riser876.stacknator.config.ConfigManager.CONFIG;
@@ -16,9 +15,6 @@ import static net.riser876.stacknator.config.ConfigManager.CONFIG;
 public class StackManager {
 
     public static void process() {
-
-        HashMap<Item, Integer> items = new HashMap<>();
-
         for (Map.Entry<String, Integer> entry : CONFIG.STACKS.entrySet()) {
             String key = entry.getKey();
 
@@ -27,49 +23,46 @@ public class StackManager {
                 continue;
             }
 
-            processEntry(items, entry);
+            StackManager.processEntry(entry);
         }
-
-        items.forEach(StackManager::setStackSize);
     }
 
-    private static void processEntry(HashMap<Item, Integer> items, Map.Entry<String, Integer> entry) {
+    private static void processEntry(Map.Entry<String, Integer> entry) {
         try {
-            Item item = Registries.ITEM.get(getIdentifier(entry.getKey()));
+            String[] parts = entry.getKey().split(":");
 
-            if (item.equals(Items.AIR)) {
-                Stacknator.LOGGER.info("[Stacknator] Item {} not found. Skipping.", entry.getKey());
-                return;
-            }
+            Identifier identifier = Identifier.of(parts[0], parts[1]);
 
-            addItem(items, item, entry.getValue());
+            Item item = Registries.ITEM.get(identifier);
+
+            StackManager.validateItem(item, entry.getValue(), entry.getKey());
         } catch (Exception e) {
             Stacknator.LOGGER.error("[Stacknator] Failed to process item: {}. Skipping.", entry.getKey());
         }
     }
 
-    private static Identifier getIdentifier(String key) {
-        String[] parts = key.split(":");
-        return Identifier.of(parts[0], parts[1]);
-    }
+    private static void validateItem(Item item, int stackSize, String key) {
+        if (item.equals(Items.AIR)) {
+            Stacknator.LOGGER.info("[Stacknator] Item {} not found. Skipping.", key);
+            return;
+        }
 
-    private static void addItem(HashMap<Item, Integer> items, Item item, int stackSize) {
         if (item.getDefaultStack().isDamageable()) {
-            Stacknator.LOGGER.info("[Stacknator] Item {} is damageable. Skipping.", item.toString());
+            Stacknator.LOGGER.info("[Stacknator] Item {} is damageable. Skipping.", key);
             return;
         }
 
         if (stackSize <= 0) {
-            Stacknator.LOGGER.info("[Stacknator] Invalid stack size: {} for item {}. Skipping.", stackSize, item.toString());
+            Stacknator.LOGGER.info("[Stacknator] Invalid stack size: {} for item {}. Skipping.", stackSize, key);
             return;
         }
 
         if (stackSize > 99) {
-            Stacknator.LOGGER.info("[Stacknator] Stack size exceeds the limit: {} for item {}. Changing it to 99.", stackSize, item.toString());
+            Stacknator.LOGGER.info("[Stacknator] Stack size exceeds the limit: {} for item {}. Changing it to 99.", stackSize, key);
             stackSize = 99;
         }
 
-        items.put(item, stackSize);
+        StackManager.setStackSize(item, stackSize);
     }
 
     private static void setStackSize(Item item, int stackSize) {
