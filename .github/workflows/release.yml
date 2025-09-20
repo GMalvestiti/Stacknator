@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_release:
+        description: "Version of the release"
+        required: true
+      version_game:
+        description: "Version of the game"
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew clean build
+
+      - name: List contents of build/libs
+        run: ls -al build/libs
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "${{ inputs.version_release || github.ref }}-${{ inputs.version_game }}"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: "Release v${{ inputs.version_release || github.ref }}-${{ inputs.version_game }}"
+          body: "Automatic release of version ${{ inputs.version_release || github.ref }} for Minecraft v${{ inputs.version_game }}"
+          draft: true
+          prerelease: false
+          files: |
+            build/libs/Stacknator-${{ inputs.version_release }}.jar
+            LICENSE.txt
+          fail_on_unmatched_files: true

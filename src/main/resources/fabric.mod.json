@@ -3,8 +3,10 @@
   "id": "stacknator",
   "version": "${version}",
   "name": "Stacknator",
-  "description": "TODO",
-  "authors": [],
+  "description": "Properly configurable stack sizes for any vanilla or modded items.",
+  "authors": [
+    "Riser876"
+  ],
   "contact": {
     "homepage": "https://modrinth.com/user/Riser876",
     "sources": "https://github.com/GMalvestiti/Stacknator",
@@ -20,6 +22,10 @@
   },
   "depends": {
     "fabricloader": ">=${loader_version}",
-    "fabric": "*"
+    "fabric": "*",
+    "minecraft": [
+      "1.21",
+      "1.21.1"
+    ]
   }
 }
