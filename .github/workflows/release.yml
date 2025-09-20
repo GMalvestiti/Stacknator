@@ -45,5 +45,5 @@ jobs:
           files: |
             build/libs/Stacknator-${{ inputs.version_release }}.jar
             LICENSE.txt
-
           fail_on_unmatched_files: true
+
