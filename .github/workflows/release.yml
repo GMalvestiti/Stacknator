@@ -36,9 +36,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "${{ inputs.version_release || github.ref }}-${{ inputs.version_game }}"
+          tag_name: "${{ inputs.version_release || github.ref }}+${{ inputs.version_game }}"
           token: ${{ secrets.GITHUB_TOKEN }}
-          name: "Release v${{ inputs.version_release || github.ref }}-${{ inputs.version_game }}"
+          name: "Release v${{ inputs.version_release || github.ref }}+${{ inputs.version_game }}"
           body: "Automatic release of version ${{ inputs.version_release || github.ref }} for Minecraft v${{ inputs.version_game }}"
           draft: true
           prerelease: false
@@ -46,3 +46,4 @@ jobs:
             build/libs/Stacknator-${{ inputs.version_release }}.jar
             LICENSE.txt
           fail_on_unmatched_files: true
+
