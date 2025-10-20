@@ -31,8 +31,8 @@ public class ConfigManager {
             String json = Files.readString(ConfigManager.CONFIG_PATH);
             ConfigManager.CONFIG = GSON.fromJson(json, Config.class);
             ConfigManager.saveConfig();
-        } catch (IOException | JsonSyntaxException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | JsonSyntaxException ex) {
+            throw new RuntimeException(ex);
         }
     }
 
@@ -41,12 +41,12 @@ public class ConfigManager {
         ConfigManager.saveConfig();
     }
 
-    private static void saveConfig() {
+    public static void saveConfig() {
         try {
             String json = GSON.toJson(ConfigManager.CONFIG);
             Files.write(ConfigManager.CONFIG_PATH, json.getBytes());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
         }
     }
 }
