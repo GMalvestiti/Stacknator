@@ -1,79 +1,283 @@
 package net.riser876.stacknator.core;
 
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.item.v1.DefaultItemComponentEvents;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.Item;
-import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.registry.entry.RegistryEntryList;
+import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.Identifier;
-import net.riser876.stacknator.Stacknator;
+import net.riser876.stacknator.config.ConfigManager;
+import net.riser876.stacknator.util.StacknatorGlobals;
+import org.slf4j.event.Level;
 
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static net.riser876.stacknator.config.ConfigManager.CONFIG;
 
 public class StackManager {
 
-    public static void process() {
-        for (Map.Entry<String, Integer> entry : CONFIG.STACKS.entrySet()) {
+    private static final Map<String, StackItem> STACK_ITEMS = new HashMap<>();
+
+    public static void init() {
+        StacknatorGlobals.log("Processing items...");
+
+        DefaultItemComponentEvents.MODIFY.register(context -> {
+            context.modify(
+                    StackManager::processItem,
+                    (builder, item) -> {
+                        builder.add(DataComponentTypes.MAX_STACK_SIZE, CONFIG.ITEMS.get(item.toString()));
+                    }
+            );
+        });
+
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            StackManager.removeDefaults();
+            StackManager.fill();
+            StackManager.sortItems();
+            StackManager.clear();
+        });
+    }
+
+    private static boolean processItem(Item item) {
+        StackItem stackItem = new StackItem(item);
+
+        STACK_ITEMS.put(stackItem.getKey(), stackItem);
+
+        if (!CONFIG.ITEMS.containsKey(stackItem.getKey())) {
+            return false;
+        }
+
+        int newStackSize = CONFIG.ITEMS.get(stackItem.getKey());
+
+        if (CONFIG.CHECKS.CHECKS_ENABLED) {
+            if (CONFIG.CHECKS.CHECK_DAMAGEABLE && stackItem.isDamageable()) {
+                StacknatorGlobals.log("Item {} is damageable. Skipping.", stackItem.getKey());
+                return false;
+            }
+
+            if (CONFIG.CHECKS.CHECK_STACKABLE && stackItem.getDefaultStackSize() > 1) {
+                StacknatorGlobals.log("Item {} is unstackable. Skipping.", stackItem.getKey());
+                return false;
+            }
+
+            if (CONFIG.CHECKS.CHECK_MINIMUM_STACK_SIZE && newStackSize < 1) {
+                StacknatorGlobals.log("Invalid stack size: {} for item {}. Skipping.", newStackSize, stackItem.getKey());
+                return false;
+            }
+
+            if (CONFIG.CHECKS.CHECK_MAXIMUM_STACK_SIZE && newStackSize > 99) {
+                StacknatorGlobals.log("Stack size exceeds the limit: {} for item {}. Changing it to 99.", newStackSize, stackItem.getKey());
+                newStackSize = 99;
+            }
+        }
+
+        if (stackItem.getDefaultStackSize() == newStackSize) {
+            return false;
+        }
+
+        if (CONFIG.LOG_MODIFIED_ITEMS) {
+            StacknatorGlobals.log("Setting stack size of {} to {}.", stackItem.getKey(), newStackSize);
+        }
+
+        stackItem.setStackSize(newStackSize);
+
+        return true;
+    }
+
+    private static void removeDefaults() {
+        try {
+            if (!CONFIG.REMOVE_DEFAULTS) {
+                StacknatorGlobals.log("Remove defaults disabled. Skipping operation.");
+                return;
+            }
+
+            StacknatorGlobals.log("Remove defaults enabled. Removing defaults...");
+
+            int removedEntries = 0;
+
+            for (Map.Entry<String, StackItem> entry : STACK_ITEMS.entrySet()) {
+                StackItem stackItem = entry.getValue();
+
+                if (stackItem.getStackSize() == stackItem.getDefaultStackSize()) {
+                    CONFIG.ITEMS.remove(stackItem.getKey());
+                    removedEntries++;
+                }
+            }
+
+            StacknatorGlobals.log("Remove defaults operation completed. Removed {} entries.", removedEntries);
+
+            ConfigManager.saveConfig();
+        } catch (Exception ex) {
+            StacknatorGlobals.log(Level.ERROR, "Failed to remove defaults.", ex);
+        }
+    }
+
+    private static void fill() {
+        Map<String, Integer> fallbackItems = null;
+
+        try {
+            if (!CONFIG.FILLER.FILLER_ENABLED) {
+                StacknatorGlobals.log("Filler disabled. Skipping operation.");
+                return;
+            }
+
+            fallbackItems = new HashMap<>(CONFIG.ITEMS);
+            CONFIG.ITEMS.clear();
+
+            StacknatorGlobals.log("Filler enabled. Loading tags...");
+
+            StackManager.loadTags();
+
+            StacknatorGlobals.log("Filling items...");
+
+            STACK_ITEMS.forEach((key, stackItem) -> StackManager.fillItem(stackItem));
+
+            StacknatorGlobals.log("Filler operation complete.");
+
+            if (CONFIG.FILLER.RUN_ONCE) {
+                StacknatorGlobals.log("Disabling filler...");
+                CONFIG.FILLER.FILLER_ENABLED = false;
+                StacknatorGlobals.log("Filler disabled.");
+            }
+        } catch (Exception ex) {
+            if (fallbackItems != null) {
+                CONFIG.ITEMS.clear();
+                CONFIG.ITEMS.putAll(fallbackItems);
+            }
+            StacknatorGlobals.log(Level.ERROR, "Failed to fill items.", ex);
+        } finally {
+            ConfigManager.saveConfig();
+        }
+    }
+
+    private static void loadTags() {
+        if (CONFIG.FILLER.TAGS.isEmpty()) {
+            StacknatorGlobals.log("Empty tags configuration. Skipping operation.");
+        } else {
+            StacknatorGlobals.log("Processing tags...");
+        }
+
+        for (Map.Entry<String, Integer> entry : CONFIG.FILLER.TAGS.entrySet()) {
             String key = entry.getKey();
 
-            if (key.split(":").length != 2) {
-                Stacknator.LOGGER.info("[Stacknator] Invalid item key: {}. Skipping.", key);
+            if (key.split(":").length != 2 || !key.startsWith("#")) {
+                StacknatorGlobals.log("Invalid tag key: {}. Skipping.", key);
                 continue;
             }
 
-            StackManager.processEntry(entry);
+            int tagStackSize = entry.getValue();
+
+            if (CONFIG.CHECKS.CHECK_MINIMUM_STACK_SIZE && tagStackSize <= 0) {
+                StacknatorGlobals.log("Invalid stack size: {} for tag {}. Skipping.", tagStackSize, key);
+                continue;
+            }
+
+            if (CONFIG.CHECKS.CHECK_MAXIMUM_STACK_SIZE && tagStackSize > 99) {
+                StacknatorGlobals.log("Stack size exceeds the limit: {} for tag {}. Changing it to 99.", tagStackSize, key);
+                tagStackSize = 99;
+            }
+
+            StackManager.loadTag(key, tagStackSize);
         }
     }
 
-    private static void processEntry(Map.Entry<String, Integer> entry) {
+    private static void loadTag(String key, int tagStackSize) {
         try {
-            String[] parts = entry.getKey().split(":");
+            Identifier identifier = Identifier.of(key.replace("#", ""));
 
-            Identifier identifier = Identifier.of(parts[0], parts[1]);
+            TagKey<Item> tagKey = TagKey.of(Registries.ITEM.getKey(), identifier);
 
-            Item item = Registries.ITEM.get(identifier);
+            Optional<RegistryEntryList.Named<Item>> items = Registries.ITEM.getOptional(tagKey);
 
-            StackManager.validateItem(item, entry.getValue(), entry.getKey());
-        } catch (Exception e) {
-            Stacknator.LOGGER.error("[Stacknator] Failed to process item: {}. Skipping.", entry.getKey());
+            if (items.isEmpty()) {
+                StacknatorGlobals.log("Empty tag: {}. Skipping.", key);
+                return;
+            }
+
+            for (RegistryEntry<Item> registryEntry : items.get()) {
+                if (STACK_ITEMS.containsKey(registryEntry.value().toString())) {
+                    StackItem stackItem = STACK_ITEMS.get(registryEntry.value().toString());
+
+                    if (stackItem.getStackSize() == stackItem.getDefaultStackSize()) {
+                        STACK_ITEMS.get(stackItem.getKey()).setStackSize(tagStackSize);
+                    } else {
+                        if (CONFIG.FILLER.TAG_PRIORITY) {
+                            STACK_ITEMS.get(stackItem.getKey()).setStackSize(tagStackSize);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            StacknatorGlobals.log(Level.ERROR, "Failed to load tag: {}. Skipping.", key);
         }
     }
 
-    private static void validateItem(Item item, int stackSize, String key) {
-        if (item.equals(Items.AIR)) {
-            Stacknator.LOGGER.info("[Stacknator] Item {} not found. Skipping.", key);
-            return;
-        }
+    private static void fillItem(StackItem stackItem) {
+        try {
+            if (CONFIG.CHECKS.CHECK_DAMAGEABLE && stackItem.isDamageable()) {
+                return;
+            }
 
-        if (item.getDefaultStack().isDamageable()) {
-            Stacknator.LOGGER.info("[Stacknator] Item {} is damageable. Skipping.", key);
-            return;
-        }
+            if (CONFIG.CHECKS.CHECK_STACKABLE && stackItem.getDefaultStackSize() <= 1) {
+                return;
+            }
 
-        if (stackSize <= 0) {
-            Stacknator.LOGGER.info("[Stacknator] Invalid stack size: {} for item {}. Skipping.", stackSize, key);
-            return;
-        }
+            if (CONFIG.CHECKS.CHECK_MINIMUM_STACK_SIZE && stackItem.getStackSize() < 1) {
+                return;
+            }
 
-        if (stackSize > 99) {
-            Stacknator.LOGGER.info("[Stacknator] Stack size exceeds the limit: {} for item {}. Changing it to 99.", stackSize, key);
-            stackSize = 99;
-        }
+            if (CONFIG.CHECKS.CHECK_MAXIMUM_STACK_SIZE && stackItem.getStackSize() > 99) {
+                stackItem.setStackSize(99);
+            }
 
-        StackManager.setStackSize(item, stackSize);
+            if (CONFIG.FILLER.RESET_STACKS) {
+                CONFIG.ITEMS.put(stackItem.getKey(), stackItem.getDefaultStackSize());
+            } else {
+                CONFIG.ITEMS.put(stackItem.getKey(), stackItem.getStackSize());
+            }
+        } catch (Exception ex) {
+            StacknatorGlobals.log(Level.ERROR, "Failed to fill item: {}. Skipping.", stackItem.getKey(), ex);
+        }
     }
 
-    private static void setStackSize(Item item, int stackSize) {
-        if (CONFIG.LOG_SUCCESS) {
-            Stacknator.LOGGER.info("[Stacknator] Setting stack size of {} to {}.", item.toString(), stackSize);
-        }
+    private static void sortItems() {
+        try {
+            if (!CONFIG.SORT_ITEMS) {
+                StacknatorGlobals.log("Item sorting disabled. Skipping operation.");
+                return;
+            }
 
-        DefaultItemComponentEvents.MODIFY.register(context -> {
-            context.modify(item, builder -> {
-                builder.add(DataComponentTypes.MAX_STACK_SIZE, stackSize);
-            });
-        });
+            StacknatorGlobals.log("Item sorting enabled. Sorting items...");
+
+            Map<String, Integer> sortedItems = CONFIG.ITEMS.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            Map.Entry::getValue,
+                            (e1, e2) -> e1,
+                            LinkedHashMap::new
+                    ));
+
+            CONFIG.ITEMS.clear();
+            CONFIG.ITEMS.putAll(sortedItems);
+
+            StacknatorGlobals.log("Item sorting operation completed.");
+
+            ConfigManager.saveConfig();
+        } catch (Exception ex) {
+            StacknatorGlobals.log(Level.ERROR, "Failed to sort items.", ex);
+        }
+    }
+
+    private static void clear() {
+        STACK_ITEMS.clear();
+        CONFIG.ITEMS.clear();
     }
 }
