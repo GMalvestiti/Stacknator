@@ -26,20 +26,16 @@ public class StackManager {
     private static final Map<String, StackItem> STACK_ITEMS = new HashMap<>();
 
     public static void init() {
-        if (CONFIG.ITEMS.isEmpty()) {
-            StacknatorGlobals.log("Empty items configuration. Skipping operation.");
-        } else {
-            StacknatorGlobals.log("Processing items...");
+        StacknatorGlobals.log("Processing items...");
 
-            DefaultItemComponentEvents.MODIFY.register(context -> {
-                context.modify(
-                        StackManager::processItem,
-                        (builder, item) -> {
-                            builder.add(DataComponentTypes.MAX_STACK_SIZE, CONFIG.ITEMS.get(item.toString()));
-                        }
-                );
-            });
-        }
+        DefaultItemComponentEvents.MODIFY.register(context -> {
+            context.modify(
+                    StackManager::processItem,
+                    (builder, item) -> {
+                        builder.add(DataComponentTypes.MAX_STACK_SIZE, CONFIG.ITEMS.get(item.toString()));
+                    }
+            );
+        });
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             StackManager.removeDefaults();
