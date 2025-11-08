@@ -20,9 +20,6 @@
       "net.riser876.stacknator.Stacknator"
     ]
   },
-  "mixins": [
-    "stacknator.mixins.json"
-  ],
   "depends": {
     "fabricloader": ">=${loader_version}",
     "fabric": "*",

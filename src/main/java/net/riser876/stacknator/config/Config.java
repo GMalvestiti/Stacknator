@@ -29,12 +29,8 @@ public class Config {
     public FillerConfig FILLER = new FillerConfig();
 
     @Expose
-    @SerializedName("sorter")
-    public SorterConfig SORTER = new SorterConfig();
-
-    @Expose
-    @SerializedName("tags")
-    public Map<String, Integer> TAGS = new HashMap<>();
+    @SerializedName("sort_items")
+    public boolean SORT_ITEMS = true;
 
     @Expose
     @SerializedName("items")
@@ -55,10 +51,6 @@ public class Config {
         public boolean CHECK_STACKABLE = false;
 
         @Expose
-        @SerializedName("check_maximum_count_one")
-        public boolean CHECK_MAXIMUM_COUNT_ONE = false;
-
-        @Expose
         @SerializedName("check_minimum_stack_size")
         public boolean CHECK_MINIMUM_STACK_SIZE = true;
 
@@ -74,38 +66,19 @@ public class Config {
         public boolean FILLER_ENABLED = false;
 
         @Expose
-        @SerializedName("filter_damageable")
-        public boolean FILTER_DAMAGEABLE = true;
-
-        @Expose
-        @SerializedName("filter_unstackable")
-        public boolean FILTER_UNSTACKABLE = false;
-
-        @Expose
-        @SerializedName("filter_maximum_count_one")
-        public boolean FILTER_MAXIMUM_COUNT_ONE = false;
-
-        @Expose
         @SerializedName("reset_stacks")
         public boolean RESET_STACKS = false;
 
         @Expose
         @SerializedName("run_once")
         public boolean RUN_ONCE = true;
-    }
-
-    public static class SorterConfig {
 
         @Expose
-        @SerializedName("sorter_enabled")
-        public boolean SORTER_ENABLED = false;
+        @SerializedName("tag_priority")
+        public boolean TAG_PRIORITY = true;
 
         @Expose
-        @SerializedName("sort_tags")
-        public boolean SORT_TAGS = false;
-
-        @Expose
-        @SerializedName("sort_items")
-        public boolean SORT_ITEMS = false;
+        @SerializedName("tags")
+        public Map<String, Integer> TAGS = new HashMap<>();
     }
 }
