@@ -115,8 +115,8 @@ Stacknator performs the following checks for each item/tag entry in the config f
     "run_once": true,
     "tag_priority": true,
     "tags": {
-        "minecraft:logs": 16,
-        "minecraft:planks": 32
+        "#minecraft:logs": 16,
+        "#minecraft:planks": 32
     }
   },
   "sort_items": true,
@@ -126,4 +126,5 @@ Stacknator performs the following checks for each item/tag entry in the config f
     "minecraft:ender_pearl": 32,
     "minecraft:tnt": 1
   }
+
 }
