@@ -31,7 +31,7 @@ Stacknator is a lightweight Minecraft mod for Fabric that lets you customize the
   Type: `boolean` Default: `true`
 - **checks**:<br>
   Defines the checks to be performed.<br>
-  Type: `object` Default:<br>
+  Type: `object` Default:`{}`<br>
   - **enable_checks**:<br>
     Enables or disables all checks.<br>
     Type: `boolean` Default: `true`<br>
@@ -115,8 +115,8 @@ Stacknator performs the following checks for each item/tag entry in the config f
     "run_once": true,
     "tag_priority": true,
     "tags": {
-        "minecraft:logs": 16,
-        "minecraft:planks": 32
+        "#minecraft:logs": 16,
+        "#minecraft:planks": 32
     }
   },
   "sort_items": true,
